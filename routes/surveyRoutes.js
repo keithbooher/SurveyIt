@@ -12,9 +12,16 @@ const User = mongoose.model('users')
 const db = mongoose.connection;
 
 module.exports = app => {
-  app.get('/api/surveys/thanks', (req, res) => {
+  // async because we are reaching into the database
+  app.get('/api/surveys', requireLogin, async (req, res) => {
+    const surveys = await Survey.find({ _user: req.user.id }).select({ recipients: false })
+    res.send(surveys)
+  })
+
+  app.get('/api/surveys/thanks/:surveyId/:choice', (req, res) => {
     res.send('Thanks for voting!')
   })
+
   app.post('/api/surveys/webhooks', (req, res) => {
     const p = new Path('/api/surveys/:surveyId/:choice')
     _.chain(req.body)
@@ -27,9 +34,6 @@ module.exports = app => {
       .compact()
       .uniqBy('email', 'surveyId')
       .each(({ surveyId, email, choice }) => {
-        console.log('ID ID ID ID')
-        console.log('ID ID ID ID')
-        console.log(surveyId)
         // Here we are finding the survey with the corresponding ID
         // and retrieve a recipient with the right email address and responded value with false
         // then in the second object we tell mongo to
@@ -42,11 +46,13 @@ module.exports = app => {
           }
         }, {
           $inc: { [choice]: 1 },
-          $set: { 'recipients.$.responded': true}
+          $set: { 'recipients.$.responded': true},
+          lastResponded: new Date()
         }).exec()
       })
       .value()
   })
+
   app.post('/api/surveys', requireLogin, requireCredits, async (req, res) => {
     // the below translates to const title = req.body.title and so on
     const { title, subject, body, recipients } = req.body
@@ -68,19 +74,16 @@ module.exports = app => {
       await survey.save()
       req.user.credits -= 1
       const user = await req.user.save()
-
-      const survey_log = survey
-      console.log('!!!---SURVEY LOG---!!!')
-      console.log(survey_log)
       res.send(user)
     } catch (err) {
       res.status(422).send(err)
     }
   })
+
+  // This route was purely made just so I can check on surveys in development for testing. Can scrap.
   app.get('/api/surveys/find_something', (req, res) => {
     Survey.findById('5e3a5326b352af1cac8b91a0', function (err, data){
         res.send(data)
     })
-    
   })
 }
