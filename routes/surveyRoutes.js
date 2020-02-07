@@ -19,6 +19,7 @@ module.exports = app => {
   })
 
   app.get('/api/surveys/thanks/:surveyId/:choice', (req, res) => {
+    // res.redirect('/')
     res.send('Thanks for voting!')
   })
 
@@ -28,6 +29,8 @@ module.exports = app => {
       .map(({ email, url }) => {
         const match = p.test(new URL(url).pathname)
         if (match) {
+          console.log('------------ WEBHOOK DATA -------------')
+          console.log({ email, surveyId: match.surveyId, choice: match.choice })
           return { email, surveyId: match.surveyId, choice: match.choice }
         }
       })
